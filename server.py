@@ -8,7 +8,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
  
 # 获取本地ip
 host = ""
-
+final = 0
 names={}
 filename = 'data.txt'
 # 给定端口
@@ -38,7 +38,7 @@ def accept():
         names[client]=name
         with open(filename,'a') as w:
             w.write('-----'+f'服务器被{name}连接: 当前连接数：-----{len(clients)}'+'-'*5+'\n')
-        print("\r"+'-'*5+f'服务器被{name}连接: 当前连接数：-----{len(clients)}'+'-'*5+'\n', end='')
+        print('\r'+'-'*5+f'服务器被{name}连接: 当前连接数：-----{len(clients)}'+'-'*5+'\n', end='')
         root=tk.Tk()
         root.withdraw()
         # tk.messagebox.showinfo('上线提醒',f'{name}上线了')
@@ -47,6 +47,8 @@ def accept():
 
 def recv_data(client):
     while True:
+        if final == 1:
+            break
         # 接受来自客户端的信息
         # cur = datetime.datetime.now().strftime('%F %T')
         try:
@@ -56,7 +58,7 @@ def recv_data(client):
             sum=len(clients)-1
             with open(filename,'a') as w:
                 w.write('-' * 5 + f'服务器被{outname}断开: 当前连接数：-----{sum}' + '-' * 5+'\n')                
-            print("\r" + '-' * 5 + f'服务器被{outname}断开: 当前连接数：-----{sum}' + '-' * 5+'\n', end='')
+            print('\r' + '-' * 5 + f'服务器被{outname}断开: 当前连接数：-----{sum}' + '-' * 5+'\n', end='')
             root=tk.Tk()
             root.withdraw()
             # tk.messagebox.showinfo('下线提醒',f'{outname}下线了')
@@ -79,10 +81,8 @@ def recv_data(client):
             if clien != client:
                 clien.send(indata)
  
- 
 def outdatas():
     while True:
- 
         # 输入要给客户端的信息
         # print('')
         cur = datetime.datetime.now().strftime('%F %T')
@@ -90,6 +90,8 @@ def outdatas():
         outdata = input('')
         # print()
         if outdata=='enter':
+            global final
+            final = 1
             break
         if outdata=='list':
             list(names)
@@ -101,6 +103,7 @@ def outdatas():
         # 给每个客户端发信息
         for client in clients:
             client.send(f"{cur}\n服务器:{outdata}".encode('utf-8)'))
+ 
 def list(w):
     for i in w:
         print(w[i])
@@ -108,35 +111,30 @@ def list(w):
 def indatas():
     while True:
         # 循环出连接的客户端，并创建相应线程
-            for clien in clients:
-                # 若是线程已经存在则跳过
-                if clien in end:
-                    continue
-                index = threading.Thread(target = recv_data,args = (clien,))
-                index.start()
-                end.append(clien)
+        if final == 1:
+            break
+        for clien in clients:
+            # 若是线程已经存在则跳过
+            if clien in end:
+                continue
+            index = threading.Thread(target = recv_data,args = (clien,))
+            index.start()
+            end.append(clien)
  
- 
-# 建立多线程
-# 创建接受信息，线程对象
-t1 = threading.Thread(target = indatas,name = 'input')
-t1.start()
- 
-# 创建发送信息，线程对象
- 
-t2 = threading.Thread(target = outdatas, name= 'out')
-t2.start()
- 
-# 等待客户连接，线程对象
- 
-t3 = threading.Thread(target = accept(),name = 'accept')
-t3.start()
- 
-# 堵塞县城知道子线程执行完毕，主线程才能结束
-# t1.join()
-t2.join()
- 
-# 关闭每一个服务器
-for client in clients:
-    client.close()
-print('-'*5+'服务器断开连接'+'-'*5)
+def main():
+    t1 = threading.Thread(target = indatas, name = 'input')
+    t1.start()
+    t2 = threading.Thread(target = outdatas, name = 'out')
+    t2.start()
+    t3 = threading.Thread(target = accept, name = 'accept')
+    t3.daemon = True
+    t3.start()
+    while True:
+        if final == 1:
+            t2.join()
+            for client in clients:
+                client.close()
+            print('-'*5+'服务器断开连接'+'-'*5)
+            exit(0)
+if __name__ == "__main__":
+    main()
